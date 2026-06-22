@@ -1,0 +1,124 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Japan Companion App v4</title>
+<style>
+body{margin:0;font-family:Arial,sans-serif;background:#f5f5f5}
+.sidebar{position:fixed;left:0;top:0;width:220px;height:100%;background:#1f2937;color:#fff;padding:15px;overflow:auto}
+.sidebar a{display:block;color:#fff;text-decoration:none;padding:10px;border-radius:8px}
+.sidebar a:hover{background:#374151}
+.content{margin-left:240px;padding:20px}
+.page{display:none}.page.active{display:block}
+.card{background:#fff;padding:18px;border-radius:12px;margin-bottom:15px;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+table{width:100%;border-collapse:collapse}
+th,td{padding:8px;border-bottom:1px solid #ddd}
+input,select,textarea{width:100%;padding:8px;box-sizing:border-box}
+button{padding:8px 12px}
+@media(max-width:800px){.sidebar{position:relative;width:auto;height:auto}.content{margin-left:0}}
+</style>
+<script>
+function showPage(id){
+ document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+ document.getElementById(id).classList.add('active');
+}
+
+const categories=[
+"Accommodation","Flights","Transport","Food & Drink","Activities",
+"Shopping","Travel Insurance","Mobile/Data","Souvenirs",
+"Emergency Fund","Other"
+];
+
+function addRow(desc='',cat='Accommodation',cost='0'){
+ let table=document.getElementById('expenseTable');
+ let row=table.insertRow(-1);
+
+ let options=categories.map(c =>
+ `<option ${c===cat?'selected':''}>${c}</option>`).join('');
+
+ row.innerHTML=`
+ <td><input value="${desc}" placeholder="Description" oninput="calculate()"></td>
+ <td><select onchange="calculate()">${options}</select></td>
+ <td><input type="number" value="${cost}" oninput="calculate()"></td>
+ <td><button onclick="this.parentNode.parentNode.remove();calculate()">❌</button></td>`;
+
+ calculate();
+}
+
+function calculate(){
+ let budget=Number(document.getElementById('budget').value)||0;
+ let spent=0;
+
+ document.querySelectorAll('#expenseTable tr').forEach((r,i)=>{
+   if(i===0)return;
+   spent += Number(r.cells[2].querySelector('input').value)||0;
+ });
+
+ document.getElementById('spent').innerHTML='Total Spent: £'+spent.toFixed(2);
+ document.getElementById('remaining').innerHTML='Budget Remaining: £'+(budget-spent).toFixed(2);
+}
+
+window.onload=function(){
+ addRow('Tokyo Hotel','Accommodation','0');
+ addRow('Hakone Ryokan','Accommodation','0');
+ addRow('Flights','Flights','0');
+}
+</script>
+</head>
+<body>
+
+<div class="sidebar">
+<h2>🇯🇵 Japan 2027</h2>
+<a href="#" onclick="showPage('home')">🏠 Home</a>
+<a href="#" onclick="showPage('budget')">💴 Budget</a>
+<a href="#" onclick="showPage('food')">🍜 Food</a>
+<a href="#" onclick="showPage('notes')">📝 Notes</a>
+</div>
+
+<div class="content">
+
+<div id="home" class="page active">
+<div class="card">
+<h1>Nathan & Amy's Japan Adventure</h1>
+<p>12–25 April 2027</p>
+</div>
+</div>
+
+<div id="budget" class="page">
+<div class="card">
+<h2>Budget Tracker</h2>
+
+<label>Total Budget (£)</label>
+<input id="budget" type="number" value="3500" oninput="calculate()">
+
+<table id="expenseTable">
+<tr>
+<th>Description</th>
+<th>Category</th>
+<th>Cost (£)</th>
+<th></th>
+</tr>
+</table>
+
+<p><button onclick="addRow()">➕ Add Expense</button></p>
+
+<h3 id="spent"></h3>
+<h3 id="remaining"></h3>
+</div>
+</div>
+
+<div id="food" class="page">
+<div class="card">Gluten-free restaurants will go here.</div>
+</div>
+
+<div id="notes" class="page">
+<div class="card">
+<textarea rows="12">Planning notes...</textarea>
+</div>
+</div>
+
+</div>
+</body>
+</html>
