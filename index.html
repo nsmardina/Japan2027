@@ -3,7 +3,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <title>Japan Companion App V5 Preview</title>
 <style>
 body{margin:0;font-family:Arial,sans-serif;background:#f4f6f8}
@@ -78,7 +78,38 @@ window.onload=function(){
  saveAll();
 }
 </script>
-</head>
+<style>
+#japanMap{height:620px;width:100%;border-radius:12px;z-index:1}.map-filters{display:flex;gap:14px;flex-wrap:wrap}.map-filters label{display:flex;align-items:center;gap:5px;width:auto}.map-filters input{width:auto}
+@media(max-width:700px){.sidebar{position:sticky;top:0;width:auto;height:auto;padding:8px;display:flex;gap:4px;overflow-x:auto;z-index:1000;white-space:nowrap}.sidebar h2{display:none}.sidebar a{display:inline-block;margin:0;padding:10px;font-size:13px}.content{margin:0;padding:12px}#japanMap{height:62vh;min-height:420px}}
+</style><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+let tripMap,groups={},tripRoute;
+function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById(id).classList.add('active');if(id==='map')setTimeout(initTripMap,150);}
+function initTripMap(){
+ if(tripMap){tripMap.invalidateSize();return;} if(!window.L)return;
+ tripMap=L.map('japanMap').setView([35.2,136.9],6);
+ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(tripMap);
+ ['hotels','sights','food'].forEach(k=>groups[k]=L.layerGroup().addTo(tripMap));
+ function marker(g,lat,lon,title,detail,search,emoji){L.marker([lat,lon]).addTo(groups[g]).bindPopup('<b>'+emoji+' '+title+'</b><br>'+detail+'<br><a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(search)+'">Open in Google Maps ↗</a>');}
+ marker('hotels',35.6975,139.7165,'KEN HOTEL Tokyo','12–15 April · Tokyo','KEN HOTEL Tokyo Shinjuku Japan','🏨');
+ marker('hotels',35.2442,139.0591,'The Fujiya Hotel','15–16 April · Hakone','The Fujiya Hotel Miyanoshita Hakone Japan','🏨');
+ marker('hotels',34.9898,135.7595,'Onyado Nono Kyoto Shichijo','16–21 April · Kyoto','Onyado Nono Kyoto Shichijo Japan','🏨');
+ marker('hotels',34.6745,135.5022,'HOTEL THE FLAG Shinsaibashi','21–23 April · Osaka','HOTEL THE FLAG Shinsaibashi Osaka Japan','🏨');
+ marker('hotels',35.6672,139.7580,'Dai-ichi Hotel Tokyo','23–25 April · Tokyo','Dai-ichi Hotel Tokyo Shimbashi Japan','🏨');
+ const sights=[[35.7148,139.7967,'Senso-ji','Asakusa, Tokyo'],[35.6764,139.6993,'Shibuya Crossing','Shibuya, Tokyo'],[35.6586,139.7454,'Tokyo Tower','Minato, Tokyo'],[35.6654,139.7707,'Tsukiji Outer Market','Tokyo'],[35.6717,139.6949,'Meiji Jingu','Shibuya, Tokyo'],[35.6264,139.7833,'teamLab Planets','Toyosu, Tokyo'],[34.9671,135.7727,'Fushimi Inari','Kyoto'],[35.0037,135.7788,'Kiyomizu-dera','Kyoto'],[35.0170,135.6713,'Arashiyama Bamboo Grove','Kyoto'],[34.6851,135.8430,'Nara Park','Nara'],[34.6873,135.5259,'Osaka Castle','Osaka'],[34.6687,135.5013,'Dotonbori','Osaka']];
+ sights.forEach(p=>marker('sights',p[0],p[1],p[2],p[3],p[2]+', '+p[3]+', Japan','📍'));
+ marker('food',35.6604,139.7292,'Gluten Free T’s Kitchen','Roppongi · dedicated gluten-free','Gluten Free T’s Kitchen Roppongi Tokyo Japan','🍜');
+ marker('food',35.6704,139.7045,'T’s Kitchen Harajuku','Harajuku · dedicated gluten-free','T’s Kitchen Harajuku Tokyo Japan','🍜');
+ marker('food',35.7140,139.7960,'Tempura Asakusa SAKURA','Asakusa · gluten-free menu; confirm coeliac procedures','Tempura Asakusa SAKURA Tokyo Japan','🍜');
+ marker('food',35.0034,135.7780,'Gion Soy Milk Ramen UNO YUKIKO','Kyoto · fully gluten-free','Gion Soy Milk Ramen UNO YUKIKO Kyoto Japan','🍜');
+ marker('food',34.6728,135.5015,'OKO Tako','Osaka · gluten-free takoyaki','OKO Tako Osaka Japan','🍜');
+ marker('food',34.6770,135.5010,'Spys Oasis','Osaka · gluten-free curry','Spys Oasis Osaka Japan','🍜');
+ tripRoute=L.polyline([[35.6975,139.7165],[35.2442,139.0591],[34.9898,135.7595],[34.6745,135.5022],[35.6672,139.7580]],{color:'#2563eb',weight:4,dashArray:'8 8'}).addTo(tripMap);
+ tripMap.fitBounds(tripRoute.getBounds().pad(.12));
+ ['hotels','sights','food'].forEach(k=>document.getElementById('show'+k[0].toUpperCase()+k.slice(1)).addEventListener('change',e=>e.target.checked?tripMap.addLayer(groups[k]):tripMap.removeLayer(groups[k])));
+ document.getElementById('showRoute').addEventListener('change',e=>e.target.checked?tripMap.addLayer(tripRoute):tripMap.removeLayer(tripRoute));
+}
+</script></head>
 <body>
 <div class="sidebar">
 <h2>🇯🇵 Japan 2027</h2>
@@ -103,7 +134,20 @@ window.onload=function(){
 
 <div id="itinerary" class="page"><div class="card"><h2>Draft Itinerary</h2><ul><li>Tokyo 3 nights</li><li>Hakone Ryokan</li><li>Kyoto 5 nights</li><li>Osaka 2 nights</li></ul></div></div>
 
-<div id="map" class="page"><div class="card"><h2>Map Preview</h2><p>Interactive route map coming in V6.</p></div></div>
+<div id="map" class="page">
+<div class="card"><h2>Japan trip map</h2><p>12–25 April 2027 · Tokyo → Hakone → Kyoto → Osaka → Tokyo</p>
+<div class="map-filters">
+<label><input type="checkbox" id="showHotels" checked> 🏨 Hotels</label>
+<label><input type="checkbox" id="showSights" checked> 📍 Sights</label>
+<label><input type="checkbox" id="showFood" checked> 🍜 Gluten-free food</label>
+<label><input type="checkbox" id="showRoute" checked> 🚄 Route</label></div></div>
+<div class="card"><div id="japanMap" aria-label="Interactive Japan trip map"></div><p>Tap a marker for details and Google Maps. Use the filters to show or hide categories.</p></div>
+<div class="card"><h3>Hotel route</h3><ol>
+<li><b>12–15 Apr · Tokyo</b> — KEN HOTEL</li>
+<li><b>15–16 Apr · Hakone</b> — The Fujiya Hotel</li>
+<li><b>16–21 Apr · Kyoto</b> — Onyado Nono Kyoto Shichijo</li>
+<li><b>21–23 Apr · Osaka</b> — HOTEL THE FLAG Shinsaibashi</li>
+<li><b>23–25 Apr · Tokyo</b> — Dai-ichi Hotel Tokyo</li></ol></div></div>
 
 <div id="food" class="page"><div class="card"><h2>Coeliac Food Hub</h2><p>Restaurants from How To Coeliac and Gluten Free Street Gang will live here.</p></div></div>
 
