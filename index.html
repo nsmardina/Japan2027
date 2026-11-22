@@ -34,19 +34,32 @@ function initTripMap(){
  if(tripMap){tripMap.invalidateSize();return;}
  tripMap=L.map(el).setView([35.1,136.9],6);
  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(tripMap);
- ['food'].forEach(k=>groups[k]=L.layerGroup().addTo(tripMap));
- function add(lat,lon,name,area,desc){
+ ['food','hotels'].forEach(k=>groups[k]=L.layerGroup().addTo(tripMap));
+ function addFood(lat,lon,name,area,desc){
   const q=encodeURIComponent(name+' '+area+' Japan');
   L.marker([lat,lon]).addTo(groups.food).bindPopup('<b>🍜 '+name+'</b><br>'+area+'<br>'+desc+'<br><a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query='+q+'">Open in Google Maps ↗</a>');
  }
- add(35.6604,139.7292,"Gluten Free T’s Kitchen","Roppongi, Tokyo","Dedicated gluten-free restaurant");
- add(35.6704,139.7045,"T’s Kitchen Harajuku","Harajuku, Tokyo","Dedicated gluten-free restaurant");
- add(35.7140,139.7960,"Tempura Asakusa SAKURA","Asakusa, Tokyo","Gluten-free menu; confirm coeliac handling when booking");
- add(35.0034,135.7780,"Gion Soy Milk Ramen UNO YUKIKO","Gion, Kyoto","Fully gluten-free restaurant");
- add(34.6728,135.5015,"OKO Tako","Osaka","Gluten-free takoyaki");
- add(34.6770,135.5010,"Spys Oasis","Osaka","Gluten-free curry");
- tripMap.fitBounds(groups.food.getBounds().pad(.15));
+ function addHotel(lat,lon,name,dates,area,search){
+  const q=encodeURIComponent(search);
+  L.circleMarker([lat,lon],{radius:9,color:'#b91c1c',weight:2,fillColor:'#ef4444',fillOpacity:1})
+   .addTo(groups.hotels)
+   .bindPopup('<b>🏨 '+name+'</b><br>'+dates+'<br>'+area+'<br><a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query='+q+'">Open in Google Maps ↗</a>');
+ }
+ addHotel(35.6975,139.7165,'KEN HOTEL Tokyo','12–15 April','Tokyo','KEN HOTEL Tokyo Shinjuku Japan');
+ addHotel(35.2442,139.0591,'The Fujiya Hotel','15–16 April','Hakone','The Fujiya Hotel Miyanoshita Hakone Japan');
+ addHotel(34.9898,135.7595,'Onyado Nono Kyoto Shichijo','16–21 April','Kyoto','Onyado Nono Kyoto Shichijo Japan');
+ addHotel(34.6745,135.5022,'HOTEL THE FLAG Shinsaibashi','21–23 April','Osaka','HOTEL THE FLAG Shinsaibashi Osaka Japan');
+ addHotel(35.6672,139.7580,'Dai-ichi Hotel Tokyo','23–25 April','Tokyo','Dai-ichi Hotel Tokyo Shimbashi Japan');
+ addFood(35.6604,139.7292,"Gluten Free T’s Kitchen","Roppongi, Tokyo","Dedicated gluten-free restaurant");
+ addFood(35.6704,139.7045,"T’s Kitchen Harajuku","Harajuku, Tokyo","Dedicated gluten-free restaurant");
+ addFood(35.7140,139.7960,"Tempura Asakusa SAKURA","Asakusa, Tokyo","Gluten-free menu; confirm coeliac handling when booking");
+ addFood(35.0034,135.7780,"Gion Soy Milk Ramen UNO YUKIKO","Gion, Kyoto","Fully gluten-free restaurant");
+ addFood(34.6728,135.5015,"OKO Tako","Osaka","Gluten-free takoyaki");
+ addFood(34.6770,135.5010,"Spys Oasis","Osaka","Gluten-free curry");
+ const bounds=L.featureGroup([groups.food,groups.hotels]);
+ tripMap.fitBounds(bounds.getBounds().pad(.15));
  document.getElementById('showFood').addEventListener('change',e=>e.target.checked?tripMap.addLayer(groups.food):tripMap.removeLayer(groups.food));
+ document.getElementById('showHotels').addEventListener('change',e=>e.target.checked?tripMap.addLayer(groups.hotels):tripMap.removeLayer(groups.hotels));
 }
 const cats=["Accommodation","Flights","Transport","Food & Drink","Activities","Shopping","Other"];
 
