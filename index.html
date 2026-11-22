@@ -34,7 +34,7 @@ function initTripMap(){
  if(tripMap){tripMap.invalidateSize();return;}
  tripMap=L.map(el).setView([35.1,136.9],6);
  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(tripMap);
- ['food','hotels'].forEach(k=>groups[k]=L.layerGroup().addTo(tripMap));
+ ['food','hotels','stations'].forEach(k=>groups[k]=L.layerGroup().addTo(tripMap));
  function addFood(lat,lon,name,area,desc){
   const q=encodeURIComponent(name+' '+area+' Japan');
   L.marker([lat,lon]).addTo(groups.food).bindPopup('<b>🍜 '+name+'</b><br>'+area+'<br>'+desc+'<br><a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query='+q+'">Open in Google Maps ↗</a>');
@@ -50,16 +50,30 @@ function initTripMap(){
  addHotel(34.9898,135.7595,'Onyado Nono Kyoto Shichijo','16–21 April','Kyoto','Onyado Nono Kyoto Shichijo Japan');
  addHotel(34.6745,135.5022,'HOTEL THE FLAG Shinsaibashi','21–23 April','Osaka','HOTEL THE FLAG Shinsaibashi Osaka Japan');
  addHotel(35.6672,139.7580,'Dai-ichi Hotel Tokyo','23–25 April','Tokyo','Dai-ichi Hotel Tokyo Shimbashi Japan');
+ function addStation(lat,lon,name,area,detail,search){
+  const q=encodeURIComponent(search);
+  L.circleMarker([lat,lon],{radius:9,color:'#6b21a8',weight:2,fillColor:'#9333ea',fillOpacity:1})
+   .addTo(groups.stations)
+   .bindPopup('<b>🚉 '+name+'</b><br>'+area+'<br>'+detail+'<br><a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query='+q+'">Open in Google Maps ↗</a>');
+ }
+ addStation(35.5494,139.7798,'Haneda Airport','Tokyo','Arrival / departure airport (HND)','Haneda Airport Tokyo Japan');
+ addStation(35.6812,139.7671,'Tokyo Station','Tokyo','Main Shinkansen terminal for the Kyoto journey','Tokyo Station Japan');
+ addStation(35.2564,139.1550,'Odawara Station','Kanagawa','Rail connection for Hakone and onward Shinkansen travel','Odawara Station Kanagawa Japan');
+ addStation(34.9858,135.7588,'Kyoto Station','Kyoto','Main station for arrival from Odawara and departure to Osaka','Kyoto Station Japan');
+ addStation(34.7335,135.5001,'Shin-Osaka Station','Osaka','Shinkansen station for intercity travel','Shin-Osaka Station Japan');
+ addStation(35.6655,139.7596,'Shimbashi Station','Tokyo','Convenient station for Dai-ichi Hotel Tokyo','Shimbashi Station Tokyo Japan');
+ addStation(35.6909,139.7003,'Shinjuku Station','Tokyo','Major rail hub for the first Tokyo stay','Shinjuku Station Tokyo Japan');
  addFood(35.6604,139.7292,"Gluten Free T’s Kitchen","Roppongi, Tokyo","Dedicated gluten-free restaurant");
  addFood(35.6704,139.7045,"T’s Kitchen Harajuku","Harajuku, Tokyo","Dedicated gluten-free restaurant");
  addFood(35.7140,139.7960,"Tempura Asakusa SAKURA","Asakusa, Tokyo","Gluten-free menu; confirm coeliac handling when booking");
  addFood(35.0034,135.7780,"Gion Soy Milk Ramen UNO YUKIKO","Gion, Kyoto","Fully gluten-free restaurant");
  addFood(34.6728,135.5015,"OKO Tako","Osaka","Gluten-free takoyaki");
  addFood(34.6770,135.5010,"Spys Oasis","Osaka","Gluten-free curry");
- const bounds=L.featureGroup([groups.food,groups.hotels]);
+ const bounds=L.featureGroup([groups.food,groups.hotels,groups.stations]);
  tripMap.fitBounds(bounds.getBounds().pad(.15));
  document.getElementById('showFood').addEventListener('change',e=>e.target.checked?tripMap.addLayer(groups.food):tripMap.removeLayer(groups.food));
  document.getElementById('showHotels').addEventListener('change',e=>e.target.checked?tripMap.addLayer(groups.hotels):tripMap.removeLayer(groups.hotels));
+ document.getElementById('showStations').addEventListener('change',e=>e.target.checked?tripMap.addLayer(groups.stations):tripMap.removeLayer(groups.stations));
 }
 const cats=["Accommodation","Flights","Transport","Food & Drink","Activities","Shopping","Other"];
 
@@ -146,6 +160,7 @@ window.onload=function(){
 <div class="card"><h2>Japan trip map</h2><p>12–25 April 2027 · Tokyo → Hakone → Kyoto → Osaka → Tokyo</p>
 <div class="map-filters">
 <label><input type="checkbox" id="showHotels" checked> 🏨 Hotels</label>
+<label><input type="checkbox" id="showStations" checked> 🚉 Stations & airport</label>
 <label><input type="checkbox" id="showSights" checked> 📍 Sights</label>
 <label><input type="checkbox" id="showFood" checked> 🍜 Gluten-free food</label>
 <label><input type="checkbox" id="showRoute" checked> 🚄 Route</label></div></div>
