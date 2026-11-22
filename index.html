@@ -28,13 +28,21 @@ function showPage(id){
  document.getElementById(id).classList.add('active');
  if(id==='map') setTimeout(initTripMap,200);
 }
+function toggleMapLayer(key,visible){
+ if(!tripMap || !groups[key]) return;
+ if(visible) tripMap.addLayer(groups[key]); else tripMap.removeLayer(groups[key]);
+}
 function initTripMap(){
  const el=document.getElementById('japanMap');
  if(!el || !window.L) { if(el) el.innerHTML='<p style="padding:20px">Map library could not load. Please check your internet connection and refresh.</p>'; return; }
- if(tripMap){tripMap.invalidateSize();return;}
+ if(tripMap){
+  tripMap.invalidateSize();
+  ['food','hotels','stations'].forEach(k=>toggleMapLayer(k,document.getElementById('show'+k.charAt(0).toUpperCase()+k.slice(1)).checked));
+  return;
+ }
  tripMap=L.map(el).setView([35.1,136.9],6);
  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(tripMap);
- ['food','hotels','stations'].forEach(k=>groups[k]=L.layerGroup().addTo(tripMap));
+ ['food','hotels','stations'].forEach(k=>groups[k]=L.layerGroup());
  function addFood(lat,lon,name,area,desc){
   const q=encodeURIComponent(name+' '+area+' Japan');
   L.marker([lat,lon]).addTo(groups.food).bindPopup('<b>🍜 '+name+'</b><br>'+area+'<br>'+desc+'<br><a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query='+q+'">Open in Google Maps ↗</a>');
@@ -71,9 +79,7 @@ function initTripMap(){
  addFood(34.6770,135.5010,"Spys Oasis","Osaka","Gluten-free curry");
  const bounds=L.featureGroup([groups.food,groups.hotels,groups.stations]);
  tripMap.fitBounds(bounds.getBounds().pad(.15));
- document.getElementById('showFood').addEventListener('change',e=>e.target.checked?tripMap.addLayer(groups.food):tripMap.removeLayer(groups.food));
- document.getElementById('showHotels').addEventListener('change',e=>e.target.checked?tripMap.addLayer(groups.hotels):tripMap.removeLayer(groups.hotels));
- document.getElementById('showStations').addEventListener('change',e=>e.target.checked?tripMap.addLayer(groups.stations):tripMap.removeLayer(groups.stations));
+ ['food','hotels','stations'].forEach(k=>toggleMapLayer(k,document.getElementById('show'+k.charAt(0).toUpperCase()+k.slice(1)).checked));
 }
 const cats=["Accommodation","Flights","Transport","Food & Drink","Activities","Shopping","Other"];
 
@@ -161,9 +167,8 @@ window.onload=function(){
 <div class="map-filters">
 <label><input type="checkbox" id="showHotels" checked> 🏨 Hotels</label>
 <label><input type="checkbox" id="showStations" checked> 🚉 Stations & airport</label>
-<label><input type="checkbox" id="showSights" checked> 📍 Sights</label>
 <label><input type="checkbox" id="showFood" checked> 🍜 Gluten-free food</label>
-<label><input type="checkbox" id="showRoute" checked> 🚄 Route</label></div></div>
+</div></div>
 <div class="card"><div id="japanMap" aria-label="Interactive Japan trip map"></div><p>Tap a marker for details and Google Maps. Use the filters to show or hide categories.</p></div>
 <div class="card"><h3>Hotel route</h3><ol>
 <li><b>12–15 Apr · Tokyo</b> — KEN HOTEL</li>
