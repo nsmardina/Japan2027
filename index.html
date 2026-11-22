@@ -136,6 +136,35 @@ window.onload=function(){
 <style>
 #japanMap{height:620px;width:100%;border-radius:12px;z-index:1}.map-filters{display:flex;gap:14px;flex-wrap:wrap}.map-filters label{display:flex;align-items:center;gap:5px;width:auto}.map-filters input{width:auto}
 @media(max-width:700px){.sidebar{position:sticky;top:0;width:auto;height:auto;padding:8px;display:flex;gap:4px;overflow-x:auto;z-index:1000;white-space:nowrap}.sidebar h2{display:none}.sidebar a{display:inline-block;margin:0;padding:10px;font-size:13px}.content{margin:0;padding:12px}#japanMap{height:62vh;min-height:420px}}
+
+/* Map experience v3.0 */
+.map-page{max-width:1320px;margin:0 auto}
+.map-heading{display:flex;align-items:center;justify-content:space-between;padding:8px 4px 20px;gap:16px}
+.map-heading .eyebrow{font-size:10px;letter-spacing:2px;font-weight:700;color:#64748b;margin-bottom:8px}
+.map-heading h1{font-size:clamp(27px,4vw,38px);letter-spacing:-1.2px;margin:0;color:#172033}
+.map-heading p{color:#64748b;margin:7px 0 0;font-size:14px}.map-heading p span{color:#a78bfa;padding:0 4px}
+.map-count{background:#fff;border:1px solid #e8edf3;border-radius:16px;padding:10px 18px;display:flex;flex-direction:column;align-items:center;min-width:62px;box-shadow:0 5px 18px rgba(15,23,42,.04)}
+.map-count strong{font-size:23px;color:#172033}.map-count span{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#8491a3}
+.map-panel{background:#fff;border:1px solid #e7ebf1;border-radius:20px;overflow:hidden;box-shadow:0 12px 34px rgba(15,23,42,.07);margin-bottom:18px}
+.map-toolbar{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:17px 20px;border-bottom:1px solid #edf0f4}
+.map-toolbar>div:first-child{display:flex;flex-direction:column;gap:4px;white-space:nowrap}.map-toolbar strong{font-size:15px;color:#1e293b}.map-toolbar small{font-size:11px;color:#94a3b8}
+.map-filters{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.map-filters .map-chip{display:inline-flex;align-items:center;gap:7px;width:auto;padding:8px 11px;border:1px solid #e6eaf0;border-radius:999px;background:#fff;color:#475569;font-size:12px;font-weight:600;cursor:pointer;transition:all .18s ease;user-select:none}
+.map-chip input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+.map-chip:has(input:checked){background:#f8fafc;border-color:#cbd5e1;color:#1e293b;box-shadow:0 2px 5px rgba(15,23,42,.04)}
+.chip-dot,.legend-dot{display:inline-block;width:8px;height:8px;border-radius:50%;flex:0 0 8px}
+.hotel-chip .chip-dot,.hotel-dot{background:#ef4444}.station-chip .chip-dot,.station-dot{background:#9333ea}.food-chip .chip-dot,.food-dot{background:#0d9488}
+.map-canvas-wrap{position:relative;padding:10px;background:#f1f5f9}
+#japanMap{height:min(68vh,680px);min-height:430px;width:100%;border-radius:14px;z-index:1;overflow:hidden}
+.map-attribution-note{position:absolute;bottom:18px;right:20px;z-index:500;background:rgba(255,255,255,.88);backdrop-filter:blur(8px);padding:5px 8px;border-radius:6px;font-size:8px;letter-spacing:1px;color:#64748b}
+.map-footer{display:flex;align-items:center;gap:18px;padding:12px 20px;color:#64748b;font-size:11px}.map-footer span{display:flex;align-items:center;gap:6px}.map-footer a{margin-left:auto;color:#475569;text-decoration:none;font-weight:600}
+.stay-strip{background:#fff;border:1px solid #e7ebf1;border-radius:18px;padding:16px 18px;box-shadow:0 5px 18px rgba(15,23,42,.035)}
+.stay-title{font-size:10px;letter-spacing:1.5px;font-weight:700;color:#94a3b8;margin-bottom:13px}.stay-title span{letter-spacing:0;background:#f1f5f9;padding:4px 7px;border-radius:20px;margin-left:7px}
+.stay-items{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.stay-items>div{border-left:2px solid #c4b5fd;padding-left:10px;min-width:0}.stay-items b{display:block;font-size:13px;color:#1e293b;margin-bottom:4px}.stay-items small{display:block;font-size:10px;line-height:1.4;color:#8491a3}
+.leaflet-popup-content-wrapper{border-radius:12px;box-shadow:0 8px 28px rgba(15,23,42,.16)}.leaflet-popup-content{font-size:12px;line-height:1.6}.leaflet-control-zoom a{color:#334155!important}
+@media(max-width:800px){.map-toolbar{align-items:flex-start;flex-direction:column}.map-filters{justify-content:flex-start}.stay-items{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:15px}.map-heading{padding-top:3px}.map-footer{gap:12px;padding:11px 13px}.map-canvas-wrap{padding:6px}#japanMap{height:62vh;min-height:390px}}
+@media(max-width:430px){.map-filters{gap:6px}.map-filters .map-chip{font-size:10px;padding:7px 9px}.map-heading p{font-size:12px}.map-footer{font-size:10px;gap:9px}.map-footer a{font-size:10px}}
+
 </style><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
@@ -162,20 +191,30 @@ window.onload=function(){
 
 <div id="itinerary" class="page"><div class="card"><h2>Draft Itinerary</h2><ul><li>Tokyo 3 nights</li><li>Hakone Ryokan</li><li>Kyoto 5 nights</li><li>Osaka 2 nights</li></ul></div></div>
 
-<div id="map" class="page">
-<div class="card"><h2>Japan trip map</h2><p>12–25 April 2027 · Tokyo → Hakone → Kyoto → Osaka → Tokyo</p>
-<div class="map-filters">
-<label><input type="checkbox" id="showHotels" checked> 🏨 Hotels</label>
-<label><input type="checkbox" id="showStations" checked> 🚉 Stations & airport</label>
-<label><input type="checkbox" id="showFood" checked> 🍜 Gluten-free food</label>
-</div></div>
-<div class="card"><div id="japanMap" aria-label="Interactive Japan trip map"></div><p>Tap a marker for details and Google Maps. Use the filters to show or hide categories.</p></div>
-<div class="card"><h3>Hotel route</h3><ol>
-<li><b>12–15 Apr · Tokyo</b> — KEN HOTEL</li>
-<li><b>15–16 Apr · Hakone</b> — The Fujiya Hotel</li>
-<li><b>16–21 Apr · Kyoto</b> — Onyado Nono Kyoto Shichijo</li>
-<li><b>21–23 Apr · Osaka</b> — HOTEL THE FLAG Shinsaibashi</li>
-<li><b>23–25 Apr · Tokyo</b> — Dai-ichi Hotel Tokyo</li></ol></div></div>
+<div id="map" class="page map-page">
+<section class="map-heading">
+ <div><div class="eyebrow">YOUR JOURNEY · 12–25 APRIL 2027</div><h1>Explore Japan</h1><p>Tokyo <span>→</span> Hakone <span>→</span> Kyoto <span>→</span> Osaka <span>→</span> Tokyo</p></div>
+ <div class="map-count"><strong>13</strong><span>nights</span></div>
+</section>
+<section class="map-panel">
+ <div class="map-toolbar">
+  <div><strong>Trip map</strong><small>Tap any pin to see details</small></div>
+  <div class="map-filters">
+   <label class="map-chip hotel-chip"><input type="checkbox" id="showHotels" checked onchange="toggleMapLayer('hotels',this.checked)"><span class="chip-dot"></span> Hotels</label>
+   <label class="map-chip station-chip"><input type="checkbox" id="showStations" checked onchange="toggleMapLayer('stations',this.checked)"><span class="chip-dot"></span> Stations & airport</label>
+   <label class="map-chip food-chip"><input type="checkbox" id="showFood" checked onchange="toggleMapLayer('food',this.checked)"><span class="chip-dot"></span> Gluten-free food</label>
+  </div>
+ </div>
+ <div class="map-canvas-wrap"><div id="japanMap" aria-label="Interactive Japan trip map"></div><div class="map-attribution-note">MAP DATA · OPENSTREETMAP</div></div>
+ <div class="map-footer"><span><i class="legend-dot hotel-dot"></i> Hotels</span><span><i class="legend-dot station-dot"></i> Stations</span><span><i class="legend-dot food-dot"></i> Food</span><a href="https://www.google.com/maps" target="_blank" rel="noopener">Open Google Maps ↗</a></div>
+</section>
+<section class="stay-strip">
+ <div class="stay-title">YOUR STAYS <span>5 stops</span></div>
+ <div class="stay-items">
+  <div><b>Tokyo</b><small>12–15 Apr · KEN HOTEL</small></div><div><b>Hakone</b><small>15–16 Apr · The Fujiya Hotel</small></div><div><b>Kyoto</b><small>16–21 Apr · Onyado Nono</small></div><div><b>Osaka</b><small>21–23 Apr · HOTEL THE FLAG</small></div><div><b>Tokyo</b><small>23–25 Apr · Dai-ichi Hotel</small></div>
+ </div>
+</section>
+</div>
 
 <div id="food" class="page"><div class="card"><h2>Coeliac Food Hub</h2><p>Restaurants from How To Coeliac and Gluten Free Street Gang will live here.</p></div></div>
 
