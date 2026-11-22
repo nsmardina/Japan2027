@@ -42,7 +42,7 @@ function initTripMap(){
  }
  tripMap=L.map(el).setView([35.1,136.9],6);
  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(tripMap);
- ['food','hotels','stations'].forEach(k=>groups[k]=L.layerGroup());
+ ['food','hotels','stations'].forEach(k=>groups[k]=L.featureGroup());
  function addFood(lat,lon,name,area,desc){
   const q=encodeURIComponent(name+' '+area+' Japan');
   L.marker([lat,lon]).addTo(groups.food).bindPopup('<b>🍜 '+name+'</b><br>'+area+'<br>'+desc+'<br><a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query='+q+'">Open in Google Maps ↗</a>');
