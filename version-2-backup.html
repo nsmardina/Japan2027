@@ -1,0 +1,209 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<title>Japan Companion App V6 Map Test</title>
+<style>
+body{margin:0;font-family:Arial,sans-serif;background:#f4f6f8}
+.sidebar{position:fixed;left:0;top:0;width:230px;height:100%;background:#1f2937;color:white;padding:15px;overflow:auto}
+.sidebar a{display:block;color:white;text-decoration:none;padding:10px;border-radius:8px;margin:3px 0}
+.sidebar a:hover{background:#374151}
+.content{margin-left:250px;padding:20px}
+.card{background:white;padding:20px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.1);margin-bottom:15px}
+.page{display:none}.active{display:block}
+.progress{background:#ddd;border-radius:20px;overflow:hidden}
+.progress div{background:#4caf50;height:20px;width:35%}
+input,textarea,select{width:100%;padding:8px;box-sizing:border-box}
+table{width:100%;border-collapse:collapse}
+th,td{padding:8px;border-bottom:1px solid #ddd}
+button{padding:8px 12px}
+#japanMap{height:560px;min-height:420px;width:100%;border-radius:12px;z-index:1}.map-filters{display:flex;gap:12px;flex-wrap:wrap}.map-filters label{display:flex;align-items:center;gap:6px;width:auto}@media(max-width:700px){.sidebar{position:sticky;top:0;width:auto;height:auto;padding:8px;display:flex;gap:4px;overflow-x:auto;z-index:1000;white-space:nowrap}.sidebar h2{display:none}.sidebar a{display:inline-block;margin:0;padding:10px;font-size:13px}.content{margin:0;padding:12px}#japanMap{height:62vh;min-height:420px}}
+</style>
+<script>
+let tripMap,groups={},tripRoute;
+function showPage(id){
+ document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+ document.getElementById(id).classList.add('active');
+ if(id==='map') setTimeout(initTripMap,200);
+}
+function toggleMapLayer(key,visible){
+ if(!tripMap || !groups[key]) return;
+ if(visible) tripMap.addLayer(groups[key]); else tripMap.removeLayer(groups[key]);
+}
+function initTripMap(){
+ const el=document.getElementById('japanMap');
+ if(!el || !window.L) { if(el) el.innerHTML='<p style="padding:20px">Map library could not load. Please check your internet connection and refresh.</p>'; return; }
+ if(tripMap){
+  tripMap.invalidateSize();
+  ['food','hotels','stations'].forEach(k=>toggleMapLayer(k,document.getElementById('show'+k.charAt(0).toUpperCase()+k.slice(1)).checked));
+  return;
+ }
+ tripMap=L.map(el).setView([35.1,136.9],6);
+ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(tripMap);
+ ['food','hotels','stations'].forEach(k=>groups[k]=L.featureGroup());
+ function addFood(lat,lon,name,area,desc){
+  const q=encodeURIComponent(name+' '+area+' Japan');
+  L.marker([lat,lon]).addTo(groups.food).bindPopup('<b>🍜 '+name+'</b><br>'+area+'<br>'+desc+'<br><a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query='+q+'">Open in Google Maps ↗</a>');
+ }
+ function addHotel(lat,lon,name,dates,area,search){
+  const q=encodeURIComponent(search);
+  L.circleMarker([lat,lon],{radius:9,color:'#b91c1c',weight:2,fillColor:'#ef4444',fillOpacity:1})
+   .addTo(groups.hotels)
+   .bindPopup('<b>🏨 '+name+'</b><br>'+dates+'<br>'+area+'<br><a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query='+q+'">Open in Google Maps ↗</a>');
+ }
+ addHotel(35.6975,139.7165,'KEN HOTEL Tokyo','12–15 April','Tokyo','KEN HOTEL Tokyo Shinjuku Japan');
+ addHotel(35.2442,139.0591,'The Fujiya Hotel','15–16 April','Hakone','The Fujiya Hotel Miyanoshita Hakone Japan');
+ addHotel(34.9898,135.7595,'Onyado Nono Kyoto Shichijo','16–21 April','Kyoto','Onyado Nono Kyoto Shichijo Japan');
+ addHotel(34.6745,135.5022,'HOTEL THE FLAG Shinsaibashi','21–23 April','Osaka','HOTEL THE FLAG Shinsaibashi Osaka Japan');
+ addHotel(35.6672,139.7580,'Dai-ichi Hotel Tokyo','23–25 April','Tokyo','Dai-ichi Hotel Tokyo Shimbashi Japan');
+ function addStation(lat,lon,name,area,detail,search){
+  const q=encodeURIComponent(search);
+  L.circleMarker([lat,lon],{radius:9,color:'#6b21a8',weight:2,fillColor:'#9333ea',fillOpacity:1})
+   .addTo(groups.stations)
+   .bindPopup('<b>🚉 '+name+'</b><br>'+area+'<br>'+detail+'<br><a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query='+q+'">Open in Google Maps ↗</a>');
+ }
+ addStation(35.5494,139.7798,'Haneda Airport','Tokyo','Arrival / departure airport (HND)','Haneda Airport Tokyo Japan');
+ addStation(35.6812,139.7671,'Tokyo Station','Tokyo','Main Shinkansen terminal for the Kyoto journey','Tokyo Station Japan');
+ addStation(35.2564,139.1550,'Odawara Station','Kanagawa','Rail connection for Hakone and onward Shinkansen travel','Odawara Station Kanagawa Japan');
+ addStation(34.9858,135.7588,'Kyoto Station','Kyoto','Main station for arrival from Odawara and departure to Osaka','Kyoto Station Japan');
+ addStation(34.7335,135.5001,'Shin-Osaka Station','Osaka','Shinkansen station for intercity travel','Shin-Osaka Station Japan');
+ addStation(35.6655,139.7596,'Shimbashi Station','Tokyo','Convenient station for Dai-ichi Hotel Tokyo','Shimbashi Station Tokyo Japan');
+ addStation(35.6909,139.7003,'Shinjuku Station','Tokyo','Major rail hub for the first Tokyo stay','Shinjuku Station Tokyo Japan');
+ addFood(35.6604,139.7292,"Gluten Free T’s Kitchen","Roppongi, Tokyo","Dedicated gluten-free restaurant");
+ addFood(35.6704,139.7045,"T’s Kitchen Harajuku","Harajuku, Tokyo","Dedicated gluten-free restaurant");
+ addFood(35.7140,139.7960,"Tempura Asakusa SAKURA","Asakusa, Tokyo","Gluten-free menu; confirm coeliac handling when booking");
+ addFood(35.0034,135.7780,"Gion Soy Milk Ramen UNO YUKIKO","Gion, Kyoto","Fully gluten-free restaurant");
+ addFood(34.6728,135.5015,"OKO Tako","Osaka","Gluten-free takoyaki");
+ addFood(34.6770,135.5010,"Spys Oasis","Osaka","Gluten-free curry");
+ const bounds=L.featureGroup([groups.food,groups.hotels,groups.stations]);
+ tripMap.fitBounds(bounds.getBounds().pad(.15));
+ ['food','hotels','stations'].forEach(k=>toggleMapLayer(k,document.getElementById('show'+k.charAt(0).toUpperCase()+k.slice(1)).checked));
+}
+const cats=["Accommodation","Flights","Transport","Food & Drink","Activities","Shopping","Other"];
+
+function addExpense(desc='',cat='Accommodation',cost='0'){
+ let t=document.getElementById('expenses');
+ let r=t.insertRow(-1);
+ let opts=cats.map(c=>`<option ${c==cat?'selected':''}>${c}</option>`).join('');
+ r.innerHTML=`<td><input value="${desc}"></td>
+ <td><select>${opts}</select></td>
+ <td><input type="number" value="${cost}"></td>
+ <td><button onclick="this.parentNode.parentNode.remove();saveAll()">❌</button></td>`;
+ r.querySelectorAll('input,select').forEach(e=>e.addEventListener('input',saveAll));
+ saveAll();
+}
+
+function saveAll(){
+ let data={
+ notes:document.getElementById('notes').value,
+ budget:document.getElementById('budget').value,
+ expenses:[]
+ };
+ let spent=0;
+ document.querySelectorAll('#expenses tr').forEach((r,i)=>{
+   if(i==0)return;
+   let e={
+    d:r.cells[0].querySelector('input').value,
+    c:r.cells[1].querySelector('select').value,
+    v:r.cells[2].querySelector('input').value
+   };
+   spent += Number(e.v)||0;
+   data.expenses.push(e);
+ });
+ localStorage.setItem('japanv5',JSON.stringify(data));
+ document.getElementById('spent').innerText='Spent £'+spent.toFixed(0);
+ document.getElementById('remaining').innerText='Remaining £'+((Number(data.budget)||0)-spent).toFixed(0);
+}
+
+window.onload=function(){
+ let s=localStorage.getItem('japanv5');
+ if(s){
+   let d=JSON.parse(s);
+   document.getElementById('notes').value=d.notes||'';
+   document.getElementById('budget').value=d.budget||3500;
+   d.expenses.forEach(x=>addExpense(x.d,x.c,x.v));
+ } else {
+   addExpense('Flights','Flights','0');
+   addExpense('Tokyo Hotel','Accommodation','0');
+ }
+ document.getElementById('notes').addEventListener('input',saveAll);
+ document.getElementById('budget').addEventListener('input',saveAll);
+ saveAll();
+}
+</script>
+<style>
+#japanMap{height:620px;width:100%;border-radius:12px;z-index:1}.map-filters{display:flex;gap:14px;flex-wrap:wrap}.map-filters label{display:flex;align-items:center;gap:5px;width:auto}.map-filters input{width:auto}
+@media(max-width:700px){.sidebar{position:sticky;top:0;width:auto;height:auto;padding:8px;display:flex;gap:4px;overflow-x:auto;z-index:1000;white-space:nowrap}.sidebar h2{display:none}.sidebar a{display:inline-block;margin:0;padding:10px;font-size:13px}.content{margin:0;padding:12px}#japanMap{height:62vh;min-height:420px}}
+</style><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+<div class="sidebar">
+<h2>🇯🇵 Japan 2027</h2>
+<a href="#" onclick="showPage('home')">🏠 Dashboard</a>
+<a href="#" onclick="showPage('itinerary')">📅 Itinerary</a>
+<a href="#" onclick="showPage('map')">🗺️ Map</a>
+<a href="#" onclick="showPage('food')">🍜 Food</a>
+<a href="#" onclick="showPage('budgetp')">💴 Budget</a>
+<a href="#" onclick="showPage('translation')">🗣️ Translation</a>
+<a href="#" onclick="showPage('notesp')">📝 Notes</a>
+</div>
+
+<div class="content">
+<div id="home" class="page active">
+<div class="card"><h1>Nathan & Amy's Japan Adventure</h1>
+<p>12–25 April 2027</p>
+<p>Tokyo → Hakone → Kyoto → Osaka → Tokyo</p>
+<h3>Planning Progress</h3>
+<div class="progress"><div></div></div>
+</div>
+</div>
+
+<div id="itinerary" class="page"><div class="card"><h2>Draft Itinerary</h2><ul><li>Tokyo 3 nights</li><li>Hakone Ryokan</li><li>Kyoto 5 nights</li><li>Osaka 2 nights</li></ul></div></div>
+
+<div id="map" class="page">
+<div class="card"><h2>Japan trip map</h2><p>12–25 April 2027 · Tokyo → Hakone → Kyoto → Osaka → Tokyo</p>
+<div class="map-filters">
+<label><input type="checkbox" id="showHotels" checked> 🏨 Hotels</label>
+<label><input type="checkbox" id="showStations" checked> 🚉 Stations & airport</label>
+<label><input type="checkbox" id="showFood" checked> 🍜 Gluten-free food</label>
+</div></div>
+<div class="card"><div id="japanMap" aria-label="Interactive Japan trip map"></div><p>Tap a marker for details and Google Maps. Use the filters to show or hide categories.</p></div>
+<div class="card"><h3>Hotel route</h3><ol>
+<li><b>12–15 Apr · Tokyo</b> — KEN HOTEL</li>
+<li><b>15–16 Apr · Hakone</b> — The Fujiya Hotel</li>
+<li><b>16–21 Apr · Kyoto</b> — Onyado Nono Kyoto Shichijo</li>
+<li><b>21–23 Apr · Osaka</b> — HOTEL THE FLAG Shinsaibashi</li>
+<li><b>23–25 Apr · Tokyo</b> — Dai-ichi Hotel Tokyo</li></ol></div></div>
+
+<div id="food" class="page"><div class="card"><h2>Coeliac Food Hub</h2><p>Restaurants from How To Coeliac and Gluten Free Street Gang will live here.</p></div></div>
+
+<div id="budgetp" class="page">
+<div class="card">
+<h2>Budget Tracker (Auto Saves)</h2>
+<input id="budget" type="number" value="3500">
+<table id="expenses">
+<tr><th>Description</th><th>Category</th><th>Cost</th><th></th></tr>
+</table>
+<button onclick="addExpense()">➕ Add Expense</button>
+<h3 id="spent"></h3>
+<h3 id="remaining"></h3>
+</div>
+</div>
+
+<div id="translation" class="page">
+<div class="card">
+<h2>Coeliac Card</h2>
+<p>私はセリアック病です。小麦、大麦、ライ麦を食べることができません。</p>
+</div>
+</div>
+
+<div id="notesp" class="page">
+<div class="card">
+<textarea id="notes" rows="12" placeholder="Trip notes..."></textarea>
+</div>
+</div>
+</div>
+</body>
+</html>
