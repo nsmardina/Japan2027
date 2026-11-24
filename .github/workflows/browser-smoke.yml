@@ -1,0 +1,44 @@
+name: Japan app browser smoke test
+on:
+  push:
+    paths:
+      - 'index.html'
+      - '.github/workflows/browser-smoke.yml'
+  workflow_dispatch:
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install browser test tools
+        run: |
+          npm init -y
+          npm install playwright
+          npx playwright install --with-deps chromium
+      - name: Run app and capture startup errors
+        run: |
+          python3 -m http.server 8000 >/tmp/server.log 2>&1 &
+          node --input-type=module <<'JS'
+          import { chromium } from 'playwright';
+          const browser = await chromium.launch({headless:true});
+          const page = await browser.newPage();
+          const errors = [];
+          page.on('pageerror', e => errors.push('PAGE: '+e.stack));
+          page.on('console', m => { if(m.type()==='error') errors.push('CONSOLE: '+m.text()); });
+          await page.goto('http://127.0.0.1:8000/', {waitUntil:'domcontentloaded'});
+          await page.waitForTimeout(1500);
+          const result = await page.evaluate(() => ({
+            title: document.title,
+            bodyText: document.body.innerText.slice(0,700),
+            homeVisible: !!document.querySelector('#home.page.active'),
+            itineraryCount: document.querySelectorAll('#itineraryLocations .location-accordion').length,
+            foodTools: !!document.getElementById('foodSearch'),
+            debug: document.getElementById('app-debug')?.innerText || ''
+          }));
+          console.log(JSON.stringify({result,errors},null,2));
+          if(errors.length || !result.homeVisible || !result.foodTools) process.exitCode=1;
+          await browser.close();
+          JS
