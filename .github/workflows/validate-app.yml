@@ -1,0 +1,24 @@
+name: Validate Japan app JavaScript
+on:
+  push:
+    paths:
+      - 'index.html'
+      - '.github/workflows/validate-app.yml'
+  workflow_dispatch:
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check inline JavaScript syntax
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path("index.html").read_text()
+          scripts = re.findall(r"<script>([\\s\\S]*?)</script>", html)
+          if not scripts:
+              raise SystemExit("No inline application script found")
+          Path("/tmp/app.js").write_text("\\n".join(scripts))
+          PY
+          node --check /tmp/app.js
