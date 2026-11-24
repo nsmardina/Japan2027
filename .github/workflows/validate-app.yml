@@ -16,14 +16,14 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import re
+          import subprocess
           for filename in ("index.html", "version-2-backup.html"):
               html = Path(filename).read_text()
-              scripts = re.findall(r"<script\\b[^>]*>([\\s\\S]*?)</script>", html, re.I)
+              scripts = re.findall(r"<script\b[^>]*>([\s\S]*?)</script>", html, re.I)
               scripts = [script for script in scripts if script.strip()]
               if not scripts:
                   raise SystemExit(f"No inline application script found in {filename}")
-              Path("/tmp/app.js").write_text("\\n".join(scripts))
-              import subprocess
+              Path("/tmp/app.js").write_text("\n".join(scripts))
               result = subprocess.run(["node", "--check", "/tmp/app.js"], capture_output=True, text=True)
               if result.returncode:
                   print(result.stdout)
