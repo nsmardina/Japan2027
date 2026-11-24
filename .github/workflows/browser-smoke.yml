@@ -26,12 +26,18 @@ jobs:
           import { readFile } from 'node:fs/promises';
           const html = await readFile('index.html', 'utf8');
           const browser = await chromium.launch({headless:true});
-          const page = await browser.newPage();
+          const context = await browser.newContext();
+          const page = await context.newPage();
           const errors = [];
           page.on('pageerror', e => errors.push('PAGE: '+e.stack));
           page.on('console', m => { if(m.type()==='error') errors.push('CONSOLE: '+m.text()); });
           await page.route('https://**/*', route => route.abort());
-          await page.setContent(html, {waitUntil:'domcontentloaded',timeout:10000});
+          await page.route('http://app.test/**', route => route.fulfill({
+            status:200,
+            contentType:'text/html; charset=utf-8',
+            body:html
+          }));
+          await page.goto('http://app.test/', {waitUntil:'domcontentloaded',timeout:10000});
           await page.waitForTimeout(500);
           const result = await page.evaluate(() => ({
             title: document.title,
