@@ -24,26 +24,23 @@ jobs:
           node --input-type=module <<'JS'
           import { chromium } from 'playwright';
           import { readFile } from 'node:fs/promises';
+          import { createServer } from 'node:http';
           const html = await readFile('index.html', 'utf8');
+          const server = createServer((req,res) => {
+            res.writeHead(200, {'content-type':'text/html; charset=utf-8'});
+            res.end(html);
+          });
+          await new Promise(resolve => server.listen(0,'127.0.0.1',resolve));
+          const address = server.address();
           const browser = await chromium.launch({headless:true});
           const context = await browser.newContext();
-          await context.addInitScript(() => {
-            const values = new Map();
-            Object.defineProperty(window, 'localStorage', { configurable:true, value:{
-              getItem:key=>values.has(String(key))?values.get(String(key)):null,
-              setItem:(key,value)=>values.set(String(key),String(value)),
-              removeItem:key=>values.delete(String(key)),
-              clear:()=>values.clear(),
-              key:index=>Array.from(values.keys())[index]??null,
-              get length(){return values.size;}
-            }});
-          });
           const page = await context.newPage();
           const errors = [];
           page.on('pageerror', e => errors.push('PAGE: '+e.stack));
           page.on('console', m => { if(m.type()==='error') errors.push('CONSOLE: '+m.text()); });
           await page.route('https://**/*', route => route.abort());
-          await page.setContent(html, {waitUntil:'domcontentloaded',timeout:10000});
+          const response = await page.goto('http://127.0.0.1:'+address.port+'/', {waitUntil:'commit',timeout:10000});
+          await page.waitForLoadState('domcontentloaded',{timeout:5000}).catch(()=>{});
           await page.waitForTimeout(500);
           const result = await page.evaluate(() => ({
             title: document.title,
@@ -51,9 +48,11 @@ jobs:
             homeVisible: !!document.querySelector('#home.page.active'),
             itineraryCount: document.querySelectorAll('#itineraryLocations .location-accordion').length,
             foodTools: !!document.getElementById('foodSearch'),
-            debug: document.getElementById('app-debug')?.innerText || ''
+            debug: document.getElementById('app-debug')?.innerText || '',
+            storageAvailable: (() => {try {localStorage.setItem('__test','1');localStorage.removeItem('__test');return true;} catch(e){return false;}})()
           }));
-          console.log(JSON.stringify({result,errors},null,2));
-          if(errors.some(e=>e.startsWith('PAGE:')) || !result.homeVisible || !result.foodTools || result.itineraryCount===0) process.exitCode=1;
+          console.log(JSON.stringify({httpStatus:response?.status(),result,errors},null,2));
+          if(!response?.ok() || errors.some(e=>e.startsWith('PAGE:')) || !result.homeVisible || !result.foodTools || result.itineraryCount===0 || !result.storageAvailable) process.exitCode=1;
           await browser.close();
+          await new Promise(resolve=>server.close(resolve));
           JS
