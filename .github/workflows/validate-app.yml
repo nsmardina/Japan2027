@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - 'index.html'
+      - 'version-2-backup.html'
       - '.github/workflows/validate-app.yml'
   workflow_dispatch:
 jobs:
@@ -10,15 +11,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check inline JavaScript syntax
+      - name: Check inline JavaScript syntax in both app versions
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import re
-          html = Path("index.html").read_text()
-          scripts = re.findall(r"<script>([\s\S]*?)</script>", html)
-          if not scripts:
-              raise SystemExit("No inline application script found")
-          Path("/tmp/app.js").write_text("\n".join(scripts))
+          for filename in ("index.html", "version-2-backup.html"):
+              html = Path(filename).read_text()
+              scripts = re.findall(r"<script\\b[^>]*>([\\s\\S]*?)</script>", html, re.I)
+              scripts = [script for script in scripts if script.strip()]
+              if not scripts:
+                  raise SystemExit(f"No inline application script found in {filename}")
+              Path("/tmp/app.js").write_text("\\n".join(scripts))
+              import subprocess
+              result = subprocess.run(["node", "--check", "/tmp/app.js"], capture_output=True, text=True)
+              if result.returncode:
+                  print(result.stdout)
+                  print(result.stderr)
+                  raise SystemExit(f"JavaScript syntax failed in {filename}")
+              print(f"JavaScript syntax passed: {filename} ({len(scripts)} inline script(s))")
           PY
-          node --check /tmp/app.js
