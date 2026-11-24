@@ -1,0 +1,80 @@
+name: Version 2 browser verification
+on:
+  push:
+    paths:
+      - '.github/workflows/version-2-browser-smoke.yml'
+  workflow_dispatch:
+jobs:
+  verify-version-2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: version-2-preserved
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Chromium test tools
+        run: |
+          npm init -y
+          npm install playwright
+          npx playwright install --with-deps chromium
+      - name: Test preserved Version 2 in Chromium
+        timeout-minutes: 3
+        run: |
+          node --input-type=module <<'JS'
+          import { chromium } from 'playwright';
+          import { readFile } from 'node:fs/promises';
+          import { createServer } from 'node:http';
+          const html = await readFile('index.html', 'utf8');
+          const server = createServer((req, res) => {
+            res.writeHead(200, {'content-type':'text/html; charset=utf-8'});
+            res.end(html);
+          });
+          await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+          console.log('Local test server ready');
+          const browser = await chromium.launch({headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
+          console.log('Chromium launched');
+          const context = await browser.newContext();
+          const page = await context.newPage();
+          const errors = [];
+          page.on('pageerror', e => errors.push(e.stack || e.message));
+          await page.route('https://*.tile.openstreetmap.org/**', route => route.abort());
+          const response = await page.goto('http://127.0.0.1:'+server.address().port+'/', {waitUntil:'load',timeout:15000});
+          console.log('Page loaded', response?.status());
+          await page.waitForTimeout(250);
+          const initial = await page.evaluate(() => ({
+            title: document.title,
+            homeVisible: document.querySelector('#home.page.active') !== null,
+            budget: document.querySelector('#budget')?.value,
+            expenseRows: document.querySelectorAll('#expenses tr').length,
+            hasMap: !!document.getElementById('japanMap'),
+            hasFoodPage: !!document.getElementById('food'),
+            hasNotes: !!document.getElementById('notes'),
+            storage: localStorage.getItem('japanv5')
+          }));
+          console.log('Initial app state', JSON.stringify(initial));
+          if (!response?.ok() || !initial.homeVisible || initial.budget !== '3500' || initial.expenseRows < 3 || !initial.hasMap || !initial.hasFoodPage || !initial.hasNotes) throw new Error('Version 2 initial render checks failed');
+          await page.evaluate(() => {
+            showPage('budgetp');
+            document.getElementById('budget').value = '4200';
+            document.getElementById('budget').dispatchEvent(new Event('input', {bubbles:true}));
+            document.getElementById('notes').value = 'Version 2 browser verification';
+            document.getElementById('notes').dispatchEvent(new Event('input', {bubbles:true}));
+            addExpense('Test expense','Activities','25');
+          });
+          const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('japanv5') || '{}'));
+          const state = await page.evaluate(() => ({
+            activeBudgetPage: document.querySelector('#budgetp.page.active') !== null,
+            spent: document.getElementById('spent').innerText,
+            remaining: document.getElementById('remaining').innerText,
+            rows: document.querySelectorAll('#expenses tr').length
+          }));
+          console.log('Interaction state', JSON.stringify(state));
+          console.log('Saved data check', JSON.stringify({budget:saved.budget,notes:saved.notes,expenses:saved.expenses?.length}));
+          if (!state.activeBudgetPage || saved.budget !== '4200' || saved.notes !== 'Version 2 browser verification' || !saved.expenses?.some(x => x.d === 'Test expense') || errors.length) throw new Error('Version 2 interaction or save checks failed: '+errors.join('\n'));
+          console.log('PASS: Version 2 renders, navigates, updates budget, adds expenses and saves notes to localStorage.');
+          await browser.close();
+          await new Promise(resolve => server.close(resolve));
+          JS
