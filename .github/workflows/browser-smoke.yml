@@ -19,22 +19,20 @@ jobs:
           npm install playwright
           npx playwright install --with-deps chromium
       - name: Run app and capture startup errors
+        timeout-minutes: 2
         run: |
-          python3 -m http.server 8000 --bind 127.0.0.1 >/tmp/server.log 2>&1 &
-          for i in {1..20}; do
-            if curl --fail --silent http://127.0.0.1:8000/index.html >/dev/null; then break; fi
-            sleep 1
-          done
           node --input-type=module <<'JS'
           import { chromium } from 'playwright';
+          import { readFile } from 'node:fs/promises';
+          const html = await readFile('index.html', 'utf8');
           const browser = await chromium.launch({headless:true});
           const page = await browser.newPage();
           const errors = [];
           page.on('pageerror', e => errors.push('PAGE: '+e.stack));
           page.on('console', m => { if(m.type()==='error') errors.push('CONSOLE: '+m.text()); });
-          const response = await page.goto('http://127.0.0.1:8000/index.html', {waitUntil:'commit',timeout:10000});
-          await page.waitForLoadState('domcontentloaded',{timeout:10000}).catch(()=>{});
-          await page.waitForTimeout(1500);
+          await page.route('https://**/*', route => route.abort());
+          await page.setContent(html, {waitUntil:'domcontentloaded',timeout:10000});
+          await page.waitForTimeout(500);
           const result = await page.evaluate(() => ({
             title: document.title,
             bodyText: document.body.innerText.slice(0,700),
@@ -43,7 +41,7 @@ jobs:
             foodTools: !!document.getElementById('foodSearch'),
             debug: document.getElementById('app-debug')?.innerText || ''
           }));
-          console.log(JSON.stringify({httpStatus:response?.status(),result,errors},null,2));
-          if(!response?.ok() || errors.some(e=>e.startsWith('PAGE:')) || !result.homeVisible || !result.foodTools) process.exitCode=1;
+          console.log(JSON.stringify({result,errors},null,2));
+          if(errors.some(e=>e.startsWith('PAGE:')) || !result.homeVisible || !result.foodTools || result.itineraryCount===0) process.exitCode=1;
           await browser.close();
           JS
