@@ -1,0 +1,84 @@
+name: Version 4 browser verification
+on:
+  push:
+    paths:
+      - 'index.html'
+      - 'app.js'
+      - '.github/workflows/version-4-browser-test.yml'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  verify-version-4:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Chromium
+        run: |
+          npm init -y
+          npm install playwright
+          npx playwright install --with-deps chromium
+      - name: Test Version 4 home and core app
+        timeout-minutes: 2
+        run: |
+          node --input-type=module <<'JS'
+          import { chromium } from 'playwright';
+          import { readFile } from 'node:fs/promises';
+          import { createServer } from 'node:http';
+          const files={'/':await readFile('index.html'),'/app.js':await readFile('app.js')};
+          const server=createServer((req,res)=>{
+            const path=req.url.split('?')[0];
+            const body=files[path];
+            if(!body){res.writeHead(404);res.end('Not found');return;}
+            res.writeHead(200,{'content-type':path.endsWith('.js')?'text/javascript; charset=utf-8':'text/html; charset=utf-8','content-length':Buffer.byteLength(body)});
+            res.end(body);
+          });
+          await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+          const origin='http://127.0.0.1:'+server.address().port;
+          const browser=await chromium.launch({headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
+          const context=await browser.newContext({viewport:{width:390,height:844}});
+          const page=await context.newPage();
+          const errors=[];
+          page.on('pageerror',e=>errors.push(e.stack||e.message));
+          await page.route('**/*',route=>route.request().url().startsWith(origin)?route.continue():route.abort());
+          const response=await page.goto(origin+'/',{waitUntil:'domcontentloaded',timeout:15000});
+          await page.waitForSelector('#home.page.active',{timeout:10000});
+          await page.waitForTimeout(250);
+          const initial=await page.evaluate(()=>({
+            title:document.title,
+            home:!!document.querySelector('#home.page.active'),
+            heading:document.querySelector('#home h1')?.innerText,
+            countdown:document.querySelector('#homeCountdown')?.innerText,
+            nav:document.querySelectorAll('.nav button').length,
+            budget:document.querySelector('#budget')?.value,
+            foodCards:document.querySelectorAll('#food details.food-item').length,
+            itineraryLocations:document.querySelectorAll('#itineraryLocations .location-accordion').length,
+            shortcutCount:document.querySelectorAll('#home .home-shortcut').length,
+            mobileNav:getComputedStyle(document.querySelector('.sidebar')).position,
+            homeScrollWidth:document.querySelector('#home').scrollWidth,
+            viewportWidth:innerWidth
+          }));
+          console.log('V4 initial state '+JSON.stringify(initial));
+          if(!response?.ok()||!initial.home||!initial.heading?.includes('Good things')||!initial.countdown||initial.nav!==7||initial.budget!=='3500'||initial.foodCards<1||initial.itineraryLocations!==5||initial.shortcutCount!==4)throw new Error('V4 home/core render checks failed');
+          if(initial.homeScrollWidth>initial.viewportWidth)throw new Error('V4 home overflows mobile viewport');
+          await page.locator('.nav button[data-page="budgetp"]').click();
+          await page.locator('#budget').fill('4200');
+          await page.locator('.nav button[data-page="notesp"]').click();
+          await page.locator('#notes').fill('Version 4 browser verification');
+          const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('japanv5')||'{}'));
+          if(saved.budget!==4200||saved.notes!=='Version 4 browser verification')throw new Error('Existing budget/notes persistence failed');
+          await page.reload({waitUntil:'domcontentloaded'});
+          await page.waitForSelector('#home.page.active');
+          await page.locator('.nav button[data-page="budgetp"]').click();
+          if(await page.locator('#budget').inputValue()!=='4200')throw new Error('Budget did not persist after reload');
+          if(errors.length)throw new Error('Browser errors: '+errors.join('\n'));
+          console.log('PASS: V4 home renders on mobile, shortcuts and navigation work, itinerary and food load, existing budget/notes persist.');
+          await browser.close();
+          await new Promise(resolve=>server.close(resolve));
+          JS
+
+# Trigger a fresh V4 verification run after opening the draft pull request.
