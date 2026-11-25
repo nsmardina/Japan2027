@@ -1,6 +1,6 @@
 
 function showAppDiagnostic(message){const box=document.getElementById("app-debug");if(box){box.hidden=false;box.textContent="Japan 2027 could not finish loading.\n\n"+message;}}
-window.addEventListener("error",event=>{if(event.target&&event.target.tagName==="SCRIPT")return;const detail=event.error&&event.error.stack?event.error.stack:(event.message||"Unknown error")+"\nFile: "+(event.filename||"unknown")+"\nLine: "+(event.lineno||"unknown");showAppDiagnostic("JavaScript error: "+detail);});
+window.addEventListener("error",event=>{if(event.target&&event.target.tagName==="SCRIPT")return;const message=event.message||"";if(!event.error&&(!event.filename||event.filename==="")&&(/^(Script error\.?|Script error:?)$/i.test(message)||message===""))return;const detail=event.error&&event.error.stack?event.error.stack:message+"\nFile: "+(event.filename||"unknown")+"\nLine: "+(event.lineno||"unknown");showAppDiagnostic("JavaScript error: "+detail);});
 window.addEventListener("unhandledrejection",event=>showAppDiagnostic("Startup promise error: "+String(event.reason||"Unknown error")));
 let tripMap=null;const groups={};const mapFoodMarkers={};const categories=["Accommodation","Flights","Transport","Food & Drink","Activities","Shopping","Other"];
 function goPage(id){document.querySelectorAll(".page").forEach(p=>p.classList.toggle("active",p.id===id));document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===id));if(id==="map")setTimeout(initTripMap,180);window.scrollTo({top:0,behavior:"smooth"});}
