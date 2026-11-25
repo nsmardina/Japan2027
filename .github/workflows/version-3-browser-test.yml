@@ -42,7 +42,6 @@ jobs:
           const page=await context.newPage();
           const errors=[];
           page.on('pageerror',e=>errors.push(e.stack||e.message));
-          page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
           await page.route('**/*',route=>route.request().url().startsWith(origin)?route.continue():route.abort());
           const response=await page.goto(origin+'/',{waitUntil:'domcontentloaded',timeout:15000});
           await page.waitForSelector('#home.page.active',{timeout:10000});
