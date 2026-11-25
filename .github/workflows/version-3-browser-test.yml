@@ -1,11 +1,13 @@
-name: Version 3 browser diagnosis
+name: Version 3 browser verification
 on:
   push:
     paths:
+      - 'index.html'
+      - 'app.js'
       - '.github/workflows/version-3-browser-test.yml'
   workflow_dispatch:
 jobs:
-  isolate-startup:
+  verify-version-3:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -18,30 +20,59 @@ jobs:
           npm init -y
           npm install playwright
           npx playwright install --with-deps chromium
-      - name: Identify blocking script section
+      - name: Test Version 3 in Chromium
         timeout-minutes: 2
         run: |
           node --input-type=module <<'JS'
           import { chromium } from 'playwright';
           import { readFile } from 'node:fs/promises';
           import { createServer } from 'node:http';
-          let html=await readFile('index.html','utf8');
-          html=html.replace('<script async src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>','').replace(/<link rel="stylesheet"[^>]*>/,'');
-          const match=html.match(/<script>([\s\S]*?)<\/script>/i);
-          const pieces=match[1].split('\n').filter((line,i)=>i>0&&line.trim());
-          const replacement=pieces.map((line,i)=>'<script>console.log("BEFORE SECTION '+(i+1)+'");</script><script>'+line+'</script>').join('\n');
-          html=html.replace(match[0],replacement);
-          const server=createServer((req,res)=>{res.writeHead(200,{'content-type':'text/html; charset=utf-8','content-length':Buffer.byteLength(html)});res.end(html);});
+          const files={'/':await readFile('index.html'),' /index.html':await readFile('index.html'),'/app.js':await readFile('app.js')};
+          const server=createServer((req,res)=>{
+            const path=req.url.split('?')[0];
+            const body=files[path];
+            if(!body){res.writeHead(404);res.end('Not found');return;}
+            res.writeHead(200,{'content-type':path.endsWith('.js')?'text/javascript; charset=utf-8':'text/html; charset=utf-8','content-length':body.length});
+            res.end(body);
+          });
           await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+          const origin='http://127.0.0.1:'+server.address().port;
           const browser=await chromium.launch({headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
-          const page=await browser.newPage();
-          page.on('console',m=>console.log('BROWSER '+m.text()));
-          page.on('pageerror',e=>console.log('BROWSER ERROR '+e.message));
-          page.on('domcontentloaded',()=>console.log('DOM CONTENT LOADED'));
-          const url='http://127.0.0.1:'+server.address().port+'/';
-          const nav=page.goto(url,{waitUntil:'commit',timeout:10000}).catch(e=>console.log('GOTO '+e.message));
-          await Promise.race([nav,new Promise(resolve=>setTimeout(resolve,15000))]);
-          console.log('TRACE COMPLETE');
+          const context=await browser.newContext();
+          await context.addInitScript(()=>localStorage.setItem('japanv5',JSON.stringify({budget:3500,expenses:[],notes:'',itinerary:{},customRestaurants:[],foodFavourites:[]})));
+          const page=await context.newPage();
+          const errors=[];
+          page.on('pageerror',e=>errors.push(e.stack||e.message));
+          page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
+          await page.route('**/*',route=>route.request().url().startsWith(origin)?route.continue():route.abort());
+          const response=await page.goto(origin+'/',{waitUntil:'domcontentloaded',timeout:15000});
+          await page.waitForSelector('#home.page.active',{timeout:10000});
+          await page.waitForTimeout(250);
+          const initial=await page.evaluate(()=>({
+            title:document.title,
+            home:!!document.querySelector('#home.page.active'),
+            nav:document.querySelectorAll('.nav button').length,
+            budget:document.querySelector('#budget')?.value,
+            foodCards:document.querySelectorAll('#food details.food-item').length,
+            itineraryLocations:document.querySelectorAll('#itineraryLocations .location-accordion').length,
+            notes:!!document.getElementById('notes'),
+            debug:document.getElementById('app-debug')?.innerText||''
+          }));
+          console.log('Initial state '+JSON.stringify(initial));
+          if(!response?.ok()||!initial.home||initial.nav!==7||initial.budget!=='3500'||initial.foodCards<1||initial.itineraryLocations!==5||!initial.notes)throw new Error('Version 3 initial render checks failed');
+          await page.locator('.nav button[data-page="budgetp"]').click();
+          await page.locator('#budget').fill('4200');
+          await page.locator('.nav button[data-page="notesp"]').click();
+          await page.locator('#notes').fill('Version 3 browser verification');
+          const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('japanv5')||'{}'));
+          if(saved.budget!==4200||saved.notes!=='Version 3 browser verification')throw new Error('Budget/notes persistence failed');
+          await page.reload({waitUntil:'domcontentloaded'});
+          await page.waitForSelector('#home.page.active');
+          await page.locator('.nav button[data-page="budgetp"]').click();
+          const persisted=await page.locator('#budget').inputValue();
+          if(persisted!=='4200')throw new Error('Budget did not persist after reload');
+          if(errors.length)throw new Error('Browser errors: '+errors.join('\n'));
+          console.log('PASS: Version 3 loads, renders, navigates, saves and restores budget and notes.');
           await browser.close();
           await new Promise(resolve=>server.close(resolve));
           JS
