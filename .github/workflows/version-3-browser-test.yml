@@ -18,7 +18,7 @@ jobs:
           npm init -y
           npm install playwright
           npx playwright install --with-deps chromium
-      - name: Trace inline script execution
+      - name: Identify blocking script section
         timeout-minutes: 2
         run: |
           node --input-type=module <<'JS'
@@ -28,19 +28,20 @@ jobs:
           let html=await readFile('index.html','utf8');
           html=html.replace('<script async src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>','').replace(/<link rel="stylesheet"[^>]*>/,'');
           const match=html.match(/<script>([\s\S]*?)<\/script>/i);
-          const instrumented=match[1].split('\n').map((line,i)=>line?'console.log("SCRIPT LINE  + (i+1) + ");\n'+line:line).join('\n');
-          html=html.replace(match[0],'<script>'+instrumented+'</script>');
+          const pieces=match[1].split('\n').filter((line,i)=>i>0&&line.trim());
+          const replacement=pieces.map((line,i)=>'<script>console.log("BEFORE SECTION '+(i+1)+'");</script><script>'+line+'</script>').join('\n');
+          html=html.replace(match[0],replacement);
           const server=createServer((req,res)=>{res.writeHead(200,{'content-type':'text/html; charset=utf-8','content-length':Buffer.byteLength(html)});res.end(html);});
           await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
           const browser=await chromium.launch({headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
           const page=await browser.newPage();
-          const seen=[];
-          page.on('console',m=>{seen.push(m.text());console.log('BROWSER '+m.text());});
-          page.on('pageerror',e=>{seen.push('PAGE ERROR '+e.message);console.log('BROWSER ERROR '+e.message);});
+          page.on('console',m=>console.log('BROWSER '+m.text()));
+          page.on('pageerror',e=>console.log('BROWSER ERROR '+e.message));
           page.on('domcontentloaded',()=>console.log('DOM CONTENT LOADED'));
           const url='http://127.0.0.1:'+server.address().port+'/';
-          await Promise.race([page.goto(url,{waitUntil:'commit',timeout:8000}).catch(e=>console.log('GOTO '+e.message)),new Promise(resolve=>setTimeout(resolve,12000))]);
-          console.log('TRACE SUMMARY '+JSON.stringify(seen));
+          const nav=page.goto(url,{waitUntil:'commit',timeout:10000}).catch(e=>console.log('GOTO '+e.message));
+          await Promise.race([nav,new Promise(resolve=>setTimeout(resolve,15000))]);
+          console.log('TRACE COMPLETE');
           await browser.close();
           await new Promise(resolve=>server.close(resolve));
           JS
