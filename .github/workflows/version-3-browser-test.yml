@@ -26,8 +26,8 @@ jobs:
           import { readFile } from 'node:fs/promises';
           import { createServer } from 'node:http';
           let html = await readFile('index.html','utf8');
-          html = html.replace(/<script\\b[^>]*src=[\"'][^\"']+[\"'][^>]*><\\/script>/gi,'');
-          html = html.replace(/<link\\b[^>]*rel=[\"']stylesheet[\"'][^>]*>/gi,'');
+          html = html.replace('<script async src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>','');
+          html = html.replace(/<link rel="stylesheet"[^>]*>/,'');
           html = html.replace('()=>{loadData();renderCustomFood();renderItinerary();setupFoodTools();updateDashboardNext();}', '()=>{console.log("START loadData");loadData();console.log("DONE loadData");renderCustomFood();console.log("DONE custom food");renderItinerary();console.log("DONE itinerary");setupFoodTools();console.log("DONE food tools");updateDashboardNext();console.log("DONE dashboard");}');
           const server = createServer((req,res)=>{res.writeHead(200,{'content-type':'text/html; charset=utf-8'});res.end(html);});
           await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
