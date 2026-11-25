@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - 'app.js'
+      - 'index.html'
       - '.github/workflows/version-3-browser-test.yml'
   workflow_dispatch:
 jobs:
@@ -19,7 +20,7 @@ jobs:
           npm init -y
           npm install playwright
           npx playwright install --with-deps chromium
-      - name: Execute app sections individually
+      - name: Test app after document is ready
         timeout-minutes: 2
         run: |
           node --input-type=module <<'JS'
@@ -34,21 +35,13 @@ jobs:
           const page=await browser.newPage();
           page.on('pageerror',e=>console.log('PAGE ERROR '+e.message));
           await page.goto('http://127.0.0.1:'+server.address().port+'/',{waitUntil:'domcontentloaded',timeout:10000});
-          const source=await readFile('app.js','utf8');
-          const lines=source.split('\n').filter(line=>line.trim());
-          for(let i=0;i<lines.length;i++){
-            console.log('RUN SECTION '+(i+1)+' of '+lines.length);
-            try {
-              await Promise.race([
-                page.addScriptTag({content:lines[i]}),
-                new Promise((_,reject)=>setTimeout(()=>reject(new Error('SECTION TIMEOUT')),1500))
-              ]);
-            } catch(e) {
-              console.log('FAILED SECTION '+(i+1)+': '+e.message);
-              break;
-            }
-          }
-          console.log('SECTION TEST COMPLETE');
+          console.log('BASE DOCUMENT READY');
+          await page.addScriptTag({path:'app.js'});
+          console.log('APP SCRIPT EXECUTED');
+          await page.evaluate(()=>document.dispatchEvent(new Event('DOMContentLoaded')));
+          console.log('DOM READY HANDLER DISPATCHED');
+          const result=await page.evaluate(()=>({home:!!document.querySelector('#home.page.active'),nav:document.querySelectorAll('.nav button').length,budget:document.querySelector('#budget')?.value,foods:document.querySelectorAll('#food details.food-item').length,itinerary:document.querySelectorAll('#itineraryLocations .location-accordion').length,debug:document.getElementById('app-debug')?.innerText||''}));
+          console.log('RESULT '+JSON.stringify(result));
           await browser.close();
           await new Promise(resolve=>server.close(resolve));
           JS
