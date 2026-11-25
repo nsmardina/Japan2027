@@ -39,7 +39,6 @@ jobs:
           const origin='http://127.0.0.1:'+server.address().port;
           const browser=await chromium.launch({headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
           const context=await browser.newContext();
-          await context.addInitScript(()=>localStorage.setItem('japanv5',JSON.stringify({budget:3500,expenses:[],notes:'',itinerary:{},customRestaurants:[],foodFavourites:[]})));
           const page=await context.newPage();
           const errors=[];
           page.on('pageerror',e=>errors.push(e.stack||e.message));
