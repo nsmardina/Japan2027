@@ -18,40 +18,29 @@ jobs:
           npm init -y
           npm install playwright
           npx playwright install --with-deps chromium
-      - name: Isolate document parsing and inline script
+      - name: Trace inline script execution
         timeout-minutes: 2
         run: |
           node --input-type=module <<'JS'
           import { chromium } from 'playwright';
           import { readFile } from 'node:fs/promises';
           import { createServer } from 'node:http';
-          const source = await readFile('index.html','utf8');
-          const stripped = source
-            .replace('<script async src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>','')
-            .replace(/<link rel="stylesheet"[^>]*>/,'')
-            .replace(/<script>([\s\S]*?)<\/script>/i,'<script>console.log("INLINE SCRIPT REPLACED");</script>');
-          const server = createServer((req,res)=>{
-            const body=req.url==='/without-app-script'?stripped:source;
-            res.writeHead(200,{'content-type':'text/html; charset=utf-8','content-length':Buffer.byteLength(body)});
-            res.end(body);
-          });
+          let html=await readFile('index.html','utf8');
+          html=html.replace('<script async src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>','').replace(/<link rel="stylesheet"[^>]*>/,'');
+          const match=html.match(/<script>([\s\S]*?)<\/script>/i);
+          const instrumented=match[1].split('\n').map((line,i)=>line?'console.log("SCRIPT LINE  + (i+1) + ");\n'+line:line).join('\n');
+          html=html.replace(match[0],'<script>'+instrumented+'</script>');
+          const server=createServer((req,res)=>{res.writeHead(200,{'content-type':'text/html; charset=utf-8','content-length':Buffer.byteLength(html)});res.end(html);});
           await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
-          const origin='http://127.0.0.1:'+server.address().port;
           const browser=await chromium.launch({headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
-          for (const path of ['/without-app-script','/with-app-script']) {
-            const page=await browser.newPage();
-            const events=[];
-            page.on('domcontentloaded',()=>events.push('DOMContentLoaded'));
-            page.on('load',()=>events.push('load'));
-            page.on('pageerror',e=>events.push('PAGE ERROR '+e.message));
-            page.on('console',m=>{if(m.type()==='error')events.push('CONSOLE ERROR '+m.text());});
-            const response=await page.goto(origin+path,{waitUntil:'commit',timeout:10000});
-            await page.waitForTimeout(2500);
-            let state='evaluation timed out';
-            try { state=await page.evaluate(()=>({readyState:document.readyState,title:document.title,bodyLength:document.body.innerHTML.length,home:!!document.querySelector('#home.page.active')})); } catch(e) { state=e.message; }
-            console.log(JSON.stringify({path,status:response?.status(),events,state}));
-            await page.close();
-          }
+          const page=await browser.newPage();
+          const seen=[];
+          page.on('console',m=>{seen.push(m.text());console.log('BROWSER '+m.text());});
+          page.on('pageerror',e=>{seen.push('PAGE ERROR '+e.message);console.log('BROWSER ERROR '+e.message);});
+          page.on('domcontentloaded',()=>console.log('DOM CONTENT LOADED'));
+          const url='http://127.0.0.1:'+server.address().port+'/';
+          await Promise.race([page.goto(url,{waitUntil:'commit',timeout:8000}).catch(e=>console.log('GOTO '+e.message)),new Promise(resolve=>setTimeout(resolve,12000))]);
+          console.log('TRACE SUMMARY '+JSON.stringify(seen));
           await browser.close();
           await new Promise(resolve=>server.close(resolve));
           JS
