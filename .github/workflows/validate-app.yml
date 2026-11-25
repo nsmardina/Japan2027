@@ -20,7 +20,7 @@ jobs:
           import subprocess
           checks = [("app.js", Path("app.js").read_text())]
           html = Path("version-2-backup.html").read_text()
-          scripts = re.findall(r"<script\\b[^>]*>([\\s\\S]*?)</script>", html, re.I)
+          scripts = re.findall(r"<script\b[^>]*>([\s\S]*?)</script>", html, re.I)
           scripts = [script for script in scripts if script.strip()]
           if not scripts:
               raise SystemExit("No inline application script found in version-2-backup.html")
