@@ -1,13 +1,12 @@
-name: Version 3 browser verification
+name: Version 3 browser diagnosis
 on:
   push:
     paths:
-      - 'index.html'
       - 'app.js'
       - '.github/workflows/version-3-browser-test.yml'
   workflow_dispatch:
 jobs:
-  verify-version-3:
+  isolate-startup:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -20,58 +19,36 @@ jobs:
           npm init -y
           npm install playwright
           npx playwright install --with-deps chromium
-      - name: Test Version 3 in Chromium
+      - name: Execute app sections individually
         timeout-minutes: 2
         run: |
           node --input-type=module <<'JS'
           import { chromium } from 'playwright';
           import { readFile } from 'node:fs/promises';
           import { createServer } from 'node:http';
-          const files={'/':await readFile('index.html'),' /index.html':await readFile('index.html'),'/app.js':await readFile('app.js')};
-          const server=createServer((req,res)=>{
-            const path=req.url.split('?')[0];
-            const body=files[path];
-            if(!body){res.writeHead(404);res.end('Not found');return;}
-            res.writeHead(200,{'content-type':path.endsWith('.js')?'text/javascript; charset=utf-8':'text/html; charset=utf-8','content-length':Buffer.byteLength(body)});
-            res.end(body);
-          });
+          let html=await readFile('index.html','utf8');
+          html=html.replace('<script defer src="app.js"></script>','');
+          const server=createServer((req,res)=>{res.writeHead(200,{'content-type':'text/html; charset=utf-8','content-length':Buffer.byteLength(html)});res.end(html);});
           await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
-          const origin='http://127.0.0.1:'+server.address().port;
           const browser=await chromium.launch({headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
-          const context=await browser.newContext();
-          const page=await context.newPage();
-          const errors=[];
-          page.on('pageerror',e=>errors.push(e.stack||e.message));
-          page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
-          await page.route('**/*',route=>route.request().url().startsWith(origin)?route.continue():route.abort());
-          const response=await page.goto(origin+'/',{waitUntil:'domcontentloaded',timeout:15000});
-          await page.waitForSelector('#home.page.active',{timeout:10000});
-          await page.waitForTimeout(250);
-          const initial=await page.evaluate(()=>({
-            title:document.title,
-            home:!!document.querySelector('#home.page.active'),
-            nav:document.querySelectorAll('.nav button').length,
-            budget:document.querySelector('#budget')?.value,
-            foodCards:document.querySelectorAll('#food details.food-item').length,
-            itineraryLocations:document.querySelectorAll('#itineraryLocations .location-accordion').length,
-            notes:!!document.getElementById('notes'),
-            debug:document.getElementById('app-debug')?.innerText||''
-          }));
-          console.log('Initial state '+JSON.stringify(initial));
-          if(!response?.ok()||!initial.home||initial.nav!==7||initial.budget!=='3500'||initial.foodCards<1||initial.itineraryLocations!==5||!initial.notes)throw new Error('Version 3 initial render checks failed');
-          await page.locator('.nav button[data-page="budgetp"]').click();
-          await page.locator('#budget').fill('4200');
-          await page.locator('.nav button[data-page="notesp"]').click();
-          await page.locator('#notes').fill('Version 3 browser verification');
-          const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('japanv5')||'{}'));
-          if(saved.budget!==4200||saved.notes!=='Version 3 browser verification')throw new Error('Budget/notes persistence failed');
-          await page.reload({waitUntil:'domcontentloaded'});
-          await page.waitForSelector('#home.page.active');
-          await page.locator('.nav button[data-page="budgetp"]').click();
-          const persisted=await page.locator('#budget').inputValue();
-          if(persisted!=='4200')throw new Error('Budget did not persist after reload');
-          if(errors.length)throw new Error('Browser errors: '+errors.join('\n'));
-          console.log('PASS: Version 3 loads, renders, navigates, saves and restores budget and notes.');
+          const page=await browser.newPage();
+          page.on('pageerror',e=>console.log('PAGE ERROR '+e.message));
+          await page.goto('http://127.0.0.1:'+server.address().port+'/',{waitUntil:'domcontentloaded',timeout:10000});
+          const source=await readFile('app.js','utf8');
+          const lines=source.split('\n').filter(line=>line.trim());
+          for(let i=0;i<lines.length;i++){
+            console.log('RUN SECTION '+(i+1)+' of '+lines.length);
+            try {
+              await Promise.race([
+                page.addScriptTag({content:lines[i]}),
+                new Promise((_,reject)=>setTimeout(()=>reject(new Error('SECTION TIMEOUT')),1500))
+              ]);
+            } catch(e) {
+              console.log('FAILED SECTION '+(i+1)+': '+e.message);
+              break;
+            }
+          }
+          console.log('SECTION TEST COMPLETE');
           await browser.close();
           await new Promise(resolve=>server.close(resolve));
           JS
