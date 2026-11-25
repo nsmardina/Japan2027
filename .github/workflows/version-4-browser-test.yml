@@ -80,3 +80,5 @@ jobs:
           await browser.close();
           await new Promise(resolve=>server.close(resolve));
           JS
+
+# Trigger a fresh V4 verification run after opening the draft pull request.
