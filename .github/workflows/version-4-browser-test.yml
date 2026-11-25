@@ -5,6 +5,8 @@ on:
       - 'index.html'
       - 'app.js'
       - '.github/workflows/version-4-browser-test.yml'
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 jobs:
   verify-version-4:
